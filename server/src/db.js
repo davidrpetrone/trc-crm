@@ -172,7 +172,7 @@ function initDb() {
     const hash = bcrypt.hashSync('admin123', 10);
 
     // Users
-    const uDave    = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Dave Petrone',    'dave@trcadvisory.com',    hash, 'admin').lastInsertRowid;
+    const uDave    = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Dave Petrone',    'DavidP@trcadvisory.com',  hash, 'admin').lastInsertRowid;
     const uTim     = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Tim Holloway',    'tim@trcadvisory.com',     hash, 'director').lastInsertRowid;
     const uMelissa = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Melissa Grant',   'melissa@trcadvisory.com', hash, 'support').lastInsertRowid;
     const uHemal   = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Hemal Patel',     'hemal@trcadvisory.com',   hash, 'finance').lastInsertRowid;
@@ -222,7 +222,7 @@ function initDb() {
     oIns.run(aApex,    cSarah,  uTim,  'Apex Supply Chain Pilot',     'Proposal in Development', 'Relationship-led', 150000, 60, 'Operations',             '2026-04-30', '2026-05-15', 6,  1.5, 'Follow-on to org redesign if won. Proposal due April 18.');
 
     console.log('Seeded demo data: 4 users, 6 accounts, 8 contacts, 8 relationships, 6 opportunities');
-    console.log('Login: dave@trcadvisory.com / admin123');
+    console.log('Login: DavidP@trcadvisory.com / admin123');
   }
 
   console.log('Database initialized at', DB_PATH);

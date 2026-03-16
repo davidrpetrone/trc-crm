@@ -1,95 +1,86 @@
 const express = require('express');
-const { getDb } = require('../db');
+const { pool } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
 const BASE_QUERY = `
   SELECT r.*,
-    TRIM(COALESCE(c.first_name,'') || ' ' || COALESCE(NULLIF(c.mi,''),'') || ' ' || COALESCE(c.last_name,'')) as contact_name,
-    c.title as contact_title, c.email as contact_email,
-    a.name as account_name, a.tier as account_tier,
-    u.name as owner_name
+    TRIM(COALESCE(c.first_name,'') || ' ' || COALESCE(NULLIF(c.mi,''),'') || ' ' || COALESCE(c.last_name,'')) AS contact_name,
+    c.title AS contact_title, c.email AS contact_email,
+    a.name AS account_name, a.tier AS account_tier,
+    u.name AS owner_name
   FROM relationships r
   LEFT JOIN contacts c ON c.id = r.contact_id
   LEFT JOIN accounts a ON a.id = r.account_id
   LEFT JOIN users u ON u.id = r.owner_id
 `;
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   const { owner_id, stage, tier } = req.query;
-  let query = BASE_QUERY;
-  const params = [];
-  const conditions = [];
-
-  if (owner_id) { conditions.push('r.owner_id = ?'); params.push(owner_id); }
-  if (stage) { conditions.push('r.stage = ?'); params.push(stage); }
-  if (tier) { conditions.push('r.tier = ?'); params.push(tier); }
-
-  if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
-  query += ' ORDER BY r.next_action_date ASC';
-
-  res.json(getDb().prepare(query).all(...params));
+  const conditions = [], params = [];
+  if (owner_id) { params.push(owner_id); conditions.push(`r.owner_id=$${params.length}`); }
+  if (stage)    { params.push(stage);    conditions.push(`r.stage=$${params.length}`); }
+  if (tier)     { params.push(tier);     conditions.push(`r.tier=$${params.length}`); }
+  const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
+  try {
+    const { rows } = await pool.query(`${BASE_QUERY}${where} ORDER BY r.next_action_date ASC NULLS LAST`, params);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/stale', requireAuth, (req, res) => {
-  // Relationships with no touch in 30+ days or overdue next action
-  const rows = getDb().prepare(`
-    ${BASE_QUERY}
-    WHERE (r.last_touch IS NULL OR r.last_touch < date('now', '-30 days'))
-       OR (r.next_action_date IS NOT NULL AND r.next_action_date < date('now'))
-    ORDER BY r.next_action_date ASC
-  `).all();
-  res.json(rows);
+router.get('/stale', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      ${BASE_QUERY}
+      WHERE (r.last_touch IS NULL OR r.last_touch < (CURRENT_DATE - INTERVAL '30 days')::text)
+         OR (r.next_action_date IS NOT NULL AND r.next_action_date < CURRENT_DATE::text)
+      ORDER BY r.next_action_date ASC NULLS LAST
+    `);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/:id', requireAuth, (req, res) => {
-  const row = getDb().prepare(`${BASE_QUERY} WHERE r.id=?`).get(req.params.id);
-  if (!row) return res.status(404).json({ error: 'Not found' });
-  res.json(row);
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`${BASE_QUERY} WHERE r.id=$1`, [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/', requireAuth, (req, res) => {
-  const {
-    contact_id, account_id, owner_id, stage, tier,
-    last_touch, next_action_date, next_action_notes,
-    ea_linked, sales_motion, notes
-  } = req.body;
-
-  const result = getDb().prepare(`
-    INSERT INTO relationships
-      (contact_id, account_id, owner_id, stage, tier, last_touch, next_action_date,
-       next_action_notes, ea_linked, sales_motion, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(contact_id, account_id, owner_id, stage || 'Target Identified', tier,
-         last_touch, next_action_date, next_action_notes, ea_linked, sales_motion, notes);
-
-  res.status(201).json({ id: result.lastInsertRowid });
+router.post('/', requireAuth, async (req, res) => {
+  const { contact_id, account_id, owner_id, stage, tier, last_touch, next_action_date, next_action_notes, ea_linked, sales_motion, notes } = req.body;
+  try {
+    const { rows } = await pool.query(`
+      INSERT INTO relationships
+        (contact_id,account_id,owner_id,stage,tier,last_touch,next_action_date,next_action_notes,ea_linked,sales_motion,notes)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      RETURNING id
+    `, [contact_id, account_id, owner_id, stage || 'Target Identified', tier, last_touch, next_action_date, next_action_notes, ea_linked, sales_motion, notes]);
+    res.status(201).json({ id: rows[0].id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
-  const {
-    contact_id, account_id, owner_id, stage, tier,
-    last_touch, next_action_date, next_action_notes,
-    ea_linked, sales_motion, notes
-  } = req.body;
-
-  getDb().prepare(`
-    UPDATE relationships SET
-      contact_id=?, account_id=?, owner_id=?, stage=?, tier=?,
-      last_touch=?, next_action_date=?, next_action_notes=?,
-      ea_linked=?, sales_motion=?, notes=?, updated_at=datetime('now')
-    WHERE id=?
-  `).run(contact_id, account_id, owner_id, stage, tier,
-         last_touch, next_action_date, next_action_notes,
-         ea_linked, sales_motion, notes, req.params.id);
-
-  res.json({ ok: true });
+router.put('/:id', requireAuth, async (req, res) => {
+  const { contact_id, account_id, owner_id, stage, tier, last_touch, next_action_date, next_action_notes, ea_linked, sales_motion, notes } = req.body;
+  try {
+    await pool.query(`
+      UPDATE relationships SET
+        contact_id=$1, account_id=$2, owner_id=$3, stage=$4, tier=$5,
+        last_touch=$6, next_action_date=$7, next_action_notes=$8,
+        ea_linked=$9, sales_motion=$10, notes=$11, updated_at=NOW()
+      WHERE id=$12
+    `, [contact_id, account_id, owner_id, stage, tier, last_touch, next_action_date, next_action_notes, ea_linked, sales_motion, notes, req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.delete('/:id', requireAuth, (req, res) => {
-  getDb().prepare('DELETE FROM relationships WHERE id=?').run(req.params.id);
-  res.json({ ok: true });
+router.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM relationships WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 module.exports = router;

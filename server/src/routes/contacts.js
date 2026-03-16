@@ -1,92 +1,100 @@
 const express = require('express');
-const { getDb } = require('../db');
+const { pool } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Helper: derive full name for backward-compat joins
 const NAME_EXPR = `TRIM(COALESCE(c.first_name,'') || ' ' || COALESCE(NULLIF(c.mi,''),' ') || ' ' || COALESCE(c.last_name,''))`;
 
 const BASE_QUERY = `
   SELECT c.*,
-    ${NAME_EXPR} as name,
-    a.name as account_name,
-    u.name as trc_owner_name
+    ${NAME_EXPR} AS name,
+    a.name AS account_name,
+    u.name AS trc_owner_name
   FROM contacts c
   LEFT JOIN accounts a ON a.id = c.account_id
   LEFT JOIN users u ON u.id = c.trc_owner_id
 `;
 
-router.get('/', requireAuth, (req, res) => {
-  const contacts = getDb().prepare(`${BASE_QUERY} ORDER BY c.last_name, c.first_name`).all();
-  res.json(contacts);
+router.get('/', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`${BASE_QUERY} ORDER BY c.last_name, c.first_name`);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/:id', requireAuth, (req, res) => {
-  const contact = getDb().prepare(`${BASE_QUERY} WHERE c.id=?`).get(req.params.id);
-  if (!contact) return res.status(404).json({ error: 'Not found' });
-  res.json(contact);
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`${BASE_QUERY} WHERE c.id=$1`, [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   const {
-    account_id, type, first_name, mi, last_name, title,
+    account_id, trc_owner_id, type, first_name, mi, last_name, title,
     email, linkedin, business_phone, mobile_phone,
     address, city, state, zip_code, country,
-    executive_assistant, ea_email, trc_owner_id,
-    overlap_flag, last_contact, notes
+    executive_assistant, ea_email, overlap_flag, last_contact, notes
   } = req.body;
+  try {
+    const { rows } = await pool.query(`
+      INSERT INTO contacts (
+        account_id, trc_owner_id, type, first_name, mi, last_name, title,
+        email, linkedin, business_phone, mobile_phone,
+        address, city, state, zip_code, country,
+        executive_assistant, ea_email, overlap_flag, last_contact, notes
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+      RETURNING id
+    `, [
+      account_id || null, trc_owner_id || null, type || 'Contact',
+      first_name, mi, last_name, title,
+      email, linkedin, business_phone, mobile_phone,
+      address, city, state, zip_code, country || 'USA',
+      executive_assistant, ea_email,
+      overlap_flag ? 1 : 0,
+      last_contact || null, notes
+    ]);
+    res.status(201).json({ id: rows[0].id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-  const result = getDb().prepare(`
-    INSERT INTO contacts (
-      account_id, type, first_name, mi, last_name, title,
+router.put('/:id', requireAuth, async (req, res) => {
+  const {
+    account_id, trc_owner_id, type, first_name, mi, last_name, title,
+    email, linkedin, business_phone, mobile_phone,
+    address, city, state, zip_code, country,
+    executive_assistant, ea_email, overlap_flag, last_contact, notes
+  } = req.body;
+  try {
+    await pool.query(`
+      UPDATE contacts SET
+        account_id=$1, trc_owner_id=$2, type=$3, first_name=$4, mi=$5, last_name=$6, title=$7,
+        email=$8, linkedin=$9, business_phone=$10, mobile_phone=$11,
+        address=$12, city=$13, state=$14, zip_code=$15, country=$16,
+        executive_assistant=$17, ea_email=$18, overlap_flag=$19, last_contact=$20, notes=$21,
+        updated_at=NOW()
+      WHERE id=$22
+    `, [
+      account_id || null, trc_owner_id || null, type,
+      first_name, mi, last_name, title,
       email, linkedin, business_phone, mobile_phone,
       address, city, state, zip_code, country,
-      executive_assistant, ea_email, trc_owner_id,
-      overlap_flag, last_contact, notes
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-  `).run(
-    account_id || null, type || 'Contact', first_name, mi, last_name, title,
-    email, linkedin, business_phone, mobile_phone,
-    address, city, state, zip_code, country,
-    executive_assistant, ea_email, trc_owner_id || null,
-    overlap_flag ? 1 : 0, last_contact, notes
-  );
-  res.status(201).json({ id: result.lastInsertRowid });
+      executive_assistant, ea_email,
+      overlap_flag ? 1 : 0,
+      last_contact || null, notes,
+      req.params.id
+    ]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
-  const {
-    account_id, type, first_name, mi, last_name, title,
-    email, linkedin, business_phone, mobile_phone,
-    address, city, state, zip_code, country,
-    executive_assistant, ea_email, trc_owner_id,
-    overlap_flag, last_contact, notes
-  } = req.body;
-
-  getDb().prepare(`
-    UPDATE contacts SET
-      account_id=?, type=?, first_name=?, mi=?, last_name=?, title=?,
-      email=?, linkedin=?, business_phone=?, mobile_phone=?,
-      address=?, city=?, state=?, zip_code=?, country=?,
-      executive_assistant=?, ea_email=?, trc_owner_id=?,
-      overlap_flag=?, last_contact=?, notes=?,
-      updated_at=datetime('now')
-    WHERE id=?
-  `).run(
-    account_id || null, type || 'Contact', first_name, mi, last_name, title,
-    email, linkedin, business_phone, mobile_phone,
-    address, city, state, zip_code, country,
-    executive_assistant, ea_email, trc_owner_id || null,
-    overlap_flag ? 1 : 0, last_contact, notes,
-    req.params.id
-  );
-  res.json({ ok: true });
-});
-
-router.delete('/:id', requireAuth, (req, res) => {
-  getDb().prepare('DELETE FROM contacts WHERE id=?').run(req.params.id);
-  res.json({ ok: true });
+router.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM contacts WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 module.exports = router;

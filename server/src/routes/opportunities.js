@@ -7,7 +7,7 @@ const router = express.Router();
 const BASE_QUERY = `
   SELECT o.*,
     a.name as account_name,
-    c.name as contact_name,
+    TRIM(COALESCE(c.first_name,'') || ' ' || COALESCE(NULLIF(c.mi,''),'') || ' ' || COALESCE(c.last_name,'')) as contact_name,
     u.name as owner_name
   FROM opportunities o
   LEFT JOIN accounts a ON a.id = o.account_id

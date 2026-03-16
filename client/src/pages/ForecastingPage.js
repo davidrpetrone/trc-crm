@@ -14,9 +14,7 @@ const STAGE_COLORS = {
 
 function fmt(val) {
   if (!val && val !== 0) return '—';
-  if (val >= 1000000) return `$${(val / 1000000).toFixed(2)}M`;
-  if (val >= 1000)    return `$${(val / 1000).toFixed(0)}k`;
-  return `$${val.toFixed(0)}`;
+  return '$' + Math.round(val).toLocaleString();
 }
 function fmtFte(val) {
   if (!val && val !== 0) return '—';

@@ -29,9 +29,7 @@ const STAGE_COLORS = {
 
 function fmt(val) {
   if (!val && val !== 0) return '—';
-  if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
-  if (val >= 1000) return `$${(val / 1000).toFixed(0)}k`;
-  return `$${val}`;
+  return '$' + Math.round(val).toLocaleString();
 }
 
 export default function PipelinePage() {

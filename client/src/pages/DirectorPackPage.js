@@ -21,9 +21,7 @@ const TIER_COLOR = { A: '#3fb950', B: '#d4a843', C: '#8b949e' };
 
 function fmt(val) {
   if (!val && val !== 0) return '—';
-  if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
-  if (val >= 1000) return `$${(val / 1000).toFixed(0)}k`;
-  return `$${val}`;
+  return '$' + Math.round(val).toLocaleString();
 }
 
 function StageChip({ stage }) {

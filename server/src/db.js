@@ -2,7 +2,7 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
-const DATA_DIR = path.join(__dirname, '../../../data');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../../data');
 const DB_PATH = path.join(DATA_DIR, 'trc_crm.db');
 
 let db;
@@ -165,36 +165,59 @@ function initDb() {
     }
   }
 
-  // Seed demo data if no users exist
-  const row = db.prepare('SELECT COUNT(*) as c FROM users').get();
-  if (row.c === 0) {
+  // Seed demo data — users/accounts seeded once; contacts/relationships/opps seeded if missing
+  const userCount    = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
+  const contactCount = db.prepare('SELECT COUNT(*) as c FROM contacts').get().c;
+
+  let uDave, uTim, uMelissa, uHemal;
+  let aApex, aVenture, aNorthStar, aCrest, aPinnacle, aBlue;
+
+  if (userCount === 0) {
     const bcrypt = require('bcryptjs');
     const hash = bcrypt.hashSync('admin123', 10);
 
     // Users
-    const uDave    = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Dave Petrone',    'DavidP@trcadvisory.com',  hash, 'admin').lastInsertRowid;
-    const uTim     = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Tim Holloway',    'tim@trcadvisory.com',     hash, 'director').lastInsertRowid;
-    const uMelissa = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Melissa Grant',   'melissa@trcadvisory.com', hash, 'support').lastInsertRowid;
-    const uHemal   = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Hemal Patel',     'hemal@trcadvisory.com',   hash, 'finance').lastInsertRowid;
+    uDave    = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Dave Petrone',    'DavidP@trcadvisory.com',  hash, 'admin').lastInsertRowid;
+    uTim     = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Tim Holloway',    'tim@trcadvisory.com',     hash, 'director').lastInsertRowid;
+    uMelissa = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Melissa Grant',   'melissa@trcadvisory.com', hash, 'support').lastInsertRowid;
+    uHemal   = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Hemal Patel',     'hemal@trcadvisory.com',   hash, 'finance').lastInsertRowid;
 
     // Accounts
-    const aApex    = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Apex Industrial Group',   'Manufacturing',        'A').lastInsertRowid;
-    const aVenture = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Venture Capital Grp',     'Private Equity',       'A').lastInsertRowid;
-    const aNorthStar=db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('NorthStar Energy',        'Energy & Utilities',   'B').lastInsertRowid;
-    const aCrest   = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Crest Financial Partners','Financial Services',   'A').lastInsertRowid;
-    const aPinnacle= db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Pinnacle Health Systems', 'Healthcare',           'B').lastInsertRowid;
-    const aBlue    = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Blue Ridge Logistics',    'Transportation',       'C').lastInsertRowid;
+    aApex     = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Apex Industrial Group',   'Manufacturing',        'A').lastInsertRowid;
+    aVenture  = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Venture Capital Grp',     'Private Equity',       'A').lastInsertRowid;
+    aNorthStar= db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('NorthStar Energy',        'Energy & Utilities',   'B').lastInsertRowid;
+    aCrest    = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Crest Financial Partners','Financial Services',   'A').lastInsertRowid;
+    aPinnacle = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Pinnacle Health Systems', 'Healthcare',           'B').lastInsertRowid;
+    aBlue     = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Blue Ridge Logistics',    'Transportation',       'C').lastInsertRowid;
+  } else {
+    // Load existing IDs for use in contacts/opps seed below
+    const users    = db.prepare('SELECT id, name FROM users').all();
+    const accounts = db.prepare('SELECT id, name FROM accounts').all();
+    const uMap = Object.fromEntries(users.map(u => [u.name, u.id]));
+    const aMap = Object.fromEntries(accounts.map(a => [a.name, a.id]));
+    uDave     = uMap['Dave Petrone'];
+    uTim      = uMap['Tim Holloway'];
+    uMelissa  = uMap['Melissa Grant'];
+    uHemal    = uMap['Hemal Patel'];
+    aApex     = aMap['Apex Industrial Group'];
+    aVenture  = aMap['Venture Capital Grp'];
+    aNorthStar= aMap['NorthStar Energy'];
+    aCrest    = aMap['Crest Financial Partners'];
+    aPinnacle = aMap['Pinnacle Health Systems'];
+    aBlue     = aMap['Blue Ridge Logistics'];
+  }
 
+  if (contactCount === 0 && uDave && aApex) {
     // Contacts
-    const ins = db.prepare('INSERT INTO contacts (account_id, type, first_name, last_name, title, email, business_phone, trc_owner_id, tier, last_contact) VALUES (?,?,?,?,?,?,?,?,?,?)');
-    const cJames  = ins.run(aApex,    'Contact',  'James',   'Whitfield', 'CEO',                    'jwhitfield@apexind.com',   '412-555-0101', uDave,    'A', '2026-03-01').lastInsertRowid;
-    const cSarah  = ins.run(aApex,    'Contact',  'Sarah',   'Connors',   'VP Operations',          'sconnors@apexind.com',     '412-555-0102', uTim,     'A', '2026-02-14').lastInsertRowid;
-    const cMark   = ins.run(aVenture, 'Contact',  'Mark',    'Ellison',   'Managing Partner',       'mellison@venturecg.com',   '212-555-0201', uDave,    'A', '2026-03-10').lastInsertRowid;
-    const cRachel = ins.run(aNorthStar,'Contact', 'Rachel',  'Torres',    'CFO',                    'rtorres@northstarenergy.com','713-555-0301',uTim,    'B', '2026-01-20').lastInsertRowid;
-    const cDan    = ins.run(aCrest,   'Contact',  'Daniel',  'Forsythe',  'Partner',                'dforsythe@crestfp.com',    '312-555-0401', uDave,    'A', '2026-03-05').lastInsertRowid;
-    const cLisa   = ins.run(aCrest,   'Prospect', 'Lisa',    'Nakamura',  'Director of Strategy',   'lnakamura@crestfp.com',    '312-555-0402', uTim,     'A', '2026-02-01').lastInsertRowid;
-    const cBrian  = ins.run(aPinnacle,'Contact',  'Brian',   'Okafor',    'COO',                    'bokafor@pinnaclehealth.com','615-555-0501', uMelissa, 'B', '2025-12-10').lastInsertRowid;
-    const cTanya  = ins.run(aBlue,    'Prospect', 'Tanya',   'Simmons',   'VP Supply Chain',        'tsimmons@blueridgelog.com', '540-555-0601', uTim,     'C', null).lastInsertRowid;
+    const ins = db.prepare('INSERT INTO contacts (account_id, type, first_name, last_name, title, email, business_phone, trc_owner_id, last_contact) VALUES (?,?,?,?,?,?,?,?,?)');
+    const cJames  = ins.run(aApex,     'Contact',  'James',   'Whitfield', 'CEO',                    'jwhitfield@apexind.com',    '412-555-0101', uDave,    '2026-03-01').lastInsertRowid;
+    const cSarah  = ins.run(aApex,     'Contact',  'Sarah',   'Connors',   'VP Operations',          'sconnors@apexind.com',      '412-555-0102', uTim,     '2026-02-14').lastInsertRowid;
+    const cMark   = ins.run(aVenture,  'Contact',  'Mark',    'Ellison',   'Managing Partner',       'mellison@venturecg.com',    '212-555-0201', uDave,    '2026-03-10').lastInsertRowid;
+    const cRachel = ins.run(aNorthStar,'Contact',  'Rachel',  'Torres',    'CFO',                    'rtorres@northstarenergy.com','713-555-0301', uTim,    '2026-01-20').lastInsertRowid;
+    const cDan    = ins.run(aCrest,    'Contact',  'Daniel',  'Forsythe',  'Partner',                'dforsythe@crestfp.com',     '312-555-0401', uDave,    '2026-03-05').lastInsertRowid;
+    const cLisa   = ins.run(aCrest,    'Prospect', 'Lisa',    'Nakamura',  'Director of Strategy',   'lnakamura@crestfp.com',     '312-555-0402', uTim,     '2026-02-01').lastInsertRowid;
+    const cBrian  = ins.run(aPinnacle, 'Contact',  'Brian',   'Okafor',    'COO',                    'bokafor@pinnaclehealth.com', '615-555-0501', uMelissa, '2025-12-10').lastInsertRowid;
+    const cTanya  = ins.run(aBlue,     'Prospect', 'Tanya',   'Simmons',   'VP Supply Chain',        'tsimmons@blueridgelog.com',  '540-555-0601', uTim,     null).lastInsertRowid;
 
     // Relationships
     const rIns = db.prepare(`INSERT INTO relationships

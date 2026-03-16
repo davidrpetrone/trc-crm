@@ -120,9 +120,9 @@ async function initDb() {
 
   // Migrate role constraint to include consultant, drop support
   await pool.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
-  await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('admin','director','finance','consultant'))`);
-  // Update any existing 'support' roles to 'consultant'
+  // Update any existing 'support' roles to 'consultant' BEFORE re-adding constraint
   await pool.query(`UPDATE users SET role='consultant' WHERE role='support'`);
+  await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('admin','director','finance','consultant'))`);
 
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_relationships_owner ON relationships(owner_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_relationships_stage  ON relationships(stage)`);

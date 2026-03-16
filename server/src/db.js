@@ -166,86 +166,18 @@ function initDb() {
   }
 
   // Seed demo data — users/accounts seeded once; contacts/relationships/opps seeded if missing
-  const userCount    = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
-  const contactCount = db.prepare('SELECT COUNT(*) as c FROM contacts').get().c;
-
-  let uDave, uTim, uMelissa, uHemal;
-  let aApex, aVenture, aNorthStar, aCrest, aPinnacle, aBlue;
+  const userCount = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
 
   if (userCount === 0) {
     const bcrypt = require('bcryptjs');
     const hash = bcrypt.hashSync('admin123', 10);
 
-    // Users
-    uDave    = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Dave Petrone',    'DavidP@trcadvisory.com',  hash, 'admin').lastInsertRowid;
-    uTim     = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Tim Holloway',    'tim@trcadvisory.com',     hash, 'director').lastInsertRowid;
-    uMelissa = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Melissa Grant',   'melissa@trcadvisory.com', hash, 'support').lastInsertRowid;
-    uHemal   = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Hemal Patel',     'hemal@trcadvisory.com',   hash, 'finance').lastInsertRowid;
+    db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Dave Petrone',  'DavidP@trcadvisory.com',  hash, 'admin');
+    db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Tim Holloway',  'tim@trcadvisory.com',     hash, 'director');
+    db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Melissa Grant', 'melissa@trcadvisory.com', hash, 'support');
+    db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)').run('Hemal Patel',   'hemal@trcadvisory.com',   hash, 'finance');
 
-    // Accounts
-    aApex     = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Apex Industrial Group',   'Manufacturing',        'A').lastInsertRowid;
-    aVenture  = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Venture Capital Grp',     'Private Equity',       'A').lastInsertRowid;
-    aNorthStar= db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('NorthStar Energy',        'Energy & Utilities',   'B').lastInsertRowid;
-    aCrest    = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Crest Financial Partners','Financial Services',   'A').lastInsertRowid;
-    aPinnacle = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Pinnacle Health Systems', 'Healthcare',           'B').lastInsertRowid;
-    aBlue     = db.prepare('INSERT INTO accounts (name, industry, tier) VALUES (?,?,?)').run('Blue Ridge Logistics',    'Transportation',       'C').lastInsertRowid;
-  } else {
-    // Load existing IDs for use in contacts/opps seed below
-    const users    = db.prepare('SELECT id, name FROM users').all();
-    const accounts = db.prepare('SELECT id, name FROM accounts').all();
-    const uMap = Object.fromEntries(users.map(u => [u.name, u.id]));
-    const aMap = Object.fromEntries(accounts.map(a => [a.name, a.id]));
-    uDave     = uMap['Dave Petrone'];
-    uTim      = uMap['Tim Holloway'];
-    uMelissa  = uMap['Melissa Grant'];
-    uHemal    = uMap['Hemal Patel'];
-    aApex     = aMap['Apex Industrial Group'];
-    aVenture  = aMap['Venture Capital Grp'];
-    aNorthStar= aMap['NorthStar Energy'];
-    aCrest    = aMap['Crest Financial Partners'];
-    aPinnacle = aMap['Pinnacle Health Systems'];
-    aBlue     = aMap['Blue Ridge Logistics'];
-  }
-
-  if (contactCount === 0 && uDave && aApex) {
-    // Contacts
-    const ins = db.prepare('INSERT INTO contacts (account_id, type, first_name, last_name, title, email, business_phone, trc_owner_id, last_contact) VALUES (?,?,?,?,?,?,?,?,?)');
-    const cJames  = ins.run(aApex,     'Contact',  'James',   'Whitfield', 'CEO',                    'jwhitfield@apexind.com',    '412-555-0101', uDave,    '2026-03-01').lastInsertRowid;
-    const cSarah  = ins.run(aApex,     'Contact',  'Sarah',   'Connors',   'VP Operations',          'sconnors@apexind.com',      '412-555-0102', uTim,     '2026-02-14').lastInsertRowid;
-    const cMark   = ins.run(aVenture,  'Contact',  'Mark',    'Ellison',   'Managing Partner',       'mellison@venturecg.com',    '212-555-0201', uDave,    '2026-03-10').lastInsertRowid;
-    const cRachel = ins.run(aNorthStar,'Contact',  'Rachel',  'Torres',    'CFO',                    'rtorres@northstarenergy.com','713-555-0301', uTim,    '2026-01-20').lastInsertRowid;
-    const cDan    = ins.run(aCrest,    'Contact',  'Daniel',  'Forsythe',  'Partner',                'dforsythe@crestfp.com',     '312-555-0401', uDave,    '2026-03-05').lastInsertRowid;
-    const cLisa   = ins.run(aCrest,    'Prospect', 'Lisa',    'Nakamura',  'Director of Strategy',   'lnakamura@crestfp.com',     '312-555-0402', uTim,     '2026-02-01').lastInsertRowid;
-    const cBrian  = ins.run(aPinnacle, 'Contact',  'Brian',   'Okafor',    'COO',                    'bokafor@pinnaclehealth.com', '615-555-0501', uMelissa, '2025-12-10').lastInsertRowid;
-    const cTanya  = ins.run(aBlue,     'Prospect', 'Tanya',   'Simmons',   'VP Supply Chain',        'tsimmons@blueridgelog.com',  '540-555-0601', uTim,     null).lastInsertRowid;
-
-    // Relationships
-    const rIns = db.prepare(`INSERT INTO relationships
-      (contact_id, account_id, owner_id, stage, tier, last_touch, next_action_date, next_action_notes, sales_motion, notes)
-      VALUES (?,?,?,?,?,?,?,?,?,?)`);
-    rIns.run(cJames,  aApex,     uDave,    'Commercial Signal Observed', 'A', '2026-03-01', '2026-03-20', 'Send capability deck',          'Relationship-led',   'Long-standing relationship. James flagged org redesign project.');
-    rIns.run(cSarah,  aApex,     uTim,     'Relationship Developing',    'A', '2026-02-14', '2026-03-25', 'Follow up on ops assessment RFI','Relationship-led',   'Introduced by James. Key decision-maker for ops work.');
-    rIns.run(cMark,   aVenture,  uDave,    'Relationship Active',        'A', '2026-03-10', '2026-04-01', 'Quarterly check-in call',        'Referral/PE-led',    'PE contact. Actively referring portfolio companies.');
-    rIns.run(cRachel, aNorthStar,uTim,     'Relationship Active',        'B', '2026-01-20', '2026-03-18', 'Re-engage after Q1 close',       'Market-driven',      'Stale — needs re-engagement after budget cycle.');
-    rIns.run(cDan,    aCrest,    uDave,    'Convert to Opportunity',     'A', '2026-03-05', '2026-03-17', 'Schedule scoping call',          'Relationship-led',   'Ready to convert. Finance transformation discussion ongoing.');
-    rIns.run(cLisa,   aCrest,    uTim,     'Target Identified',          'A', null,         '2026-03-28', 'Intro email via Dan Forsythe',   'Relationship-led',   'Warm intro pending from Dan.');
-    rIns.run(cBrian,  aPinnacle, uMelissa, 'Relationship Developing',    'B', '2025-12-10', '2026-03-19', 'Healthcare ops capability brief', 'Market-driven',      'Attended TRC webinar in Dec. Interest in care delivery ops.');
-    rIns.run(cTanya,  aBlue,     uTim,     'Target Identified',          'C', null,         null,         null,                             'Market-driven',      'Cold outreach target. Supply chain background relevant.');
-
-    // Opportunities
-    const oIns = db.prepare(`INSERT INTO opportunities
-      (account_id, contact_id, owner_id, name, stage, sales_motion, estimated_value, confidence,
-       service_line, close_date, start_date, duration_weeks, fte_per_month, notes)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
-    oIns.run(aApex,    cJames, uDave, 'Apex Org Redesign',            'Proposal Delivered',      'Relationship-led', 480000, 70, 'Human Capital',          '2026-04-15', '2026-05-01', 16, 3.0, 'Full org design and change management. Verbal interest received.');
-    oIns.run(aCrest,   cDan,   uDave, 'Crest Finance Transformation', 'Verbal Alignment',        'Relationship-led', 620000, 85, 'Finance & Accounting',   '2026-04-01', '2026-04-14', 20, 4.0, 'CFO-sponsored. Contract review underway.');
-    oIns.run(aVenture, cMark,  uDave, 'Portfolio Co Ops Assessment',  'Discovery',               'Referral/PE-led',  180000, 40, 'Operations',             '2026-05-30', '2026-06-16', 8,  2.0, 'PE-referred portco. Scope TBD pending discovery.');
-    oIns.run(aNorthStar,cRachel,uTim, 'NorthStar Cost Reduction',     'Solution Shaping',        'Market-driven',    340000, 55, 'Operations',             '2026-05-15', '2026-06-01', 12, 2.5, 'Cost takeout initiative. Solution shaping with Rachel\'s team.');
-    oIns.run(aPinnacle,cBrian,  uMelissa,'Pinnacle Care Delivery Ops', 'Qualified',               'Market-driven',    260000, 25, 'Operations',             '2026-06-30', '2026-07-07', 10, 2.0, 'Early stage. Budget confirmation needed.');
-    oIns.run(aApex,    cSarah,  uTim,  'Apex Supply Chain Pilot',     'Proposal in Development', 'Relationship-led', 150000, 60, 'Operations',             '2026-04-30', '2026-05-15', 6,  1.5, 'Follow-on to org redesign if won. Proposal due April 18.');
-
-    console.log('Seeded demo data: 4 users, 6 accounts, 8 contacts, 8 relationships, 6 opportunities');
-    console.log('Login: DavidP@trcadvisory.com / admin123');
+    console.log('Seeded users. Login: DavidP@trcadvisory.com / admin123');
   }
 
   console.log('Database initialized at', DB_PATH);

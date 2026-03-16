@@ -6,7 +6,8 @@ const router = express.Router();
 
 const BASE_QUERY = `
   SELECT r.*,
-    c.name as contact_name, c.title as contact_title, c.email as contact_email,
+    TRIM(COALESCE(c.first_name,'') || ' ' || COALESCE(NULLIF(c.mi,''),'') || ' ' || COALESCE(c.last_name,'')) as contact_name,
+    c.title as contact_title, c.email as contact_email,
     a.name as account_name, a.tier as account_tier,
     u.name as owner_name
   FROM relationships r

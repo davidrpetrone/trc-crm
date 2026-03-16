@@ -1,0 +1,29 @@
+.type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.type-badge.prospect { background: #388bfd22; color: #388bfd; }
+.type-badge.contact  { background: #3fb95022; color: #3fb950; }
+
+.contact-cell { display: flex; flex-direction: column; }
+.contact-name { font-weight: 500; }
+.contact-ea   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+.form-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--gold);
+  margin: 18px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.form-section-title:first-child { margin-top: 0; }
+
+.form-row.three-col {
+  grid-template-columns: 1fr 1fr 1fr;
+}

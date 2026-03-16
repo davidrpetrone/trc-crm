@@ -1,0 +1,8 @@
+node_modules/
+data/
+*.db
+.env
+client/build/
+*.pptx
+*.pdf
+extract.ps1

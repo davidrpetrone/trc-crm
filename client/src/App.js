@@ -11,6 +11,8 @@ import AccountsPage from './pages/AccountsPage';
 import ContactsPage from './pages/ContactsPage';
 import UserProfilesPage from './pages/UserProfilesPage';
 import CommittedEngagementsPage from './pages/CommittedEngagementsPage';
+import ResourcingOutlookPage from './pages/ResourcingOutlookPage';
+import FinancialInputsPage from './pages/FinancialInputsPage';
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -33,6 +35,8 @@ function AppRoutes() {
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="committed" element={<CommittedEngagementsPage />} />
+        <Route path="resourcing" element={<PrivateRoute roles={['admin', 'finance']}><ResourcingOutlookPage /></PrivateRoute>} />
+        <Route path="financial-inputs" element={<PrivateRoute roles={['admin']}><FinancialInputsPage /></PrivateRoute>} />
         <Route path="user-profiles" element={<PrivateRoute roles={['admin']}><UserProfilesPage /></PrivateRoute>} />
       </Route>
     </Routes>

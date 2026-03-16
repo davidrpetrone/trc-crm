@@ -32,17 +32,18 @@ export default function RelationshipsPage() {
   const [editing, setEditing] = useState(null);
 
   const { data: relationships = [], isLoading } = useQuery({
-    queryKey: ['relationships'],
-    queryFn: () => api.get('/relationships').then(r => r.data),
+    queryKey: ['relationships-active'],
+    queryFn: () => api.get('/relationships/active-contacts').then(r => r.data),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/relationships/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['relationships'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['relationships-active'] }),
   });
 
-  function handleEdit(rel) {
-    setEditing(rel);
+  function handleEdit(row) {
+    // If the contact has no relationship record yet, pass a seed object (no id → modal will POST)
+    setEditing(row.id ? row : { contact_id: row.contact_id, account_id: row.account_id });
     setModalOpen(true);
   }
 
@@ -161,9 +162,10 @@ export default function RelationshipsPage() {
                       )}
                     </td>
                     <td>
-                      <span className="stage-chip" style={{ background: STAGE_COLORS[r.stage]?.bg, color: STAGE_COLORS[r.stage]?.text }}>
-                        {r.stage}
-                      </span>
+                      {r.stage
+                        ? <span className="stage-chip" style={{ background: STAGE_COLORS[r.stage]?.bg, color: STAGE_COLORS[r.stage]?.text }}>{r.stage}</span>
+                        : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+                      }
                     </td>
                     <td style={{ color: 'var(--text-muted)' }}>{r.owner_name || '—'}</td>
                     <td style={{ color: stale ? 'var(--warning)' : 'var(--text-muted)', fontSize: 12 }}>
@@ -185,14 +187,18 @@ export default function RelationshipsPage() {
                     </td>
                     <td>
                       <div className="row-actions">
-                        <button className="btn-secondary" style={{ padding: '4px 10px' }} onClick={() => handleEdit(r)}>Edit</button>
-                        <button
-                          className="btn-danger"
-                          style={{ padding: '4px 10px' }}
-                          onClick={() => { if (window.confirm(`Delete relationship with ${r.contact_name}?`)) deleteMutation.mutate(r.id); }}
-                        >
-                          Delete
+                        <button className="btn-secondary" style={{ padding: '4px 10px' }} onClick={() => handleEdit(r)}>
+                          {r.id ? 'Edit' : 'Add'}
                         </button>
+                        {r.id && (
+                          <button
+                            className="btn-danger"
+                            style={{ padding: '4px 10px' }}
+                            onClick={() => { if (window.confirm(`Delete relationship with ${r.contact_name}?`)) deleteMutation.mutate(r.id); }}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -207,7 +213,7 @@ export default function RelationshipsPage() {
         <RelationshipModal
           relationship={editing}
           onClose={handleClose}
-          onSaved={() => { qc.invalidateQueries({ queryKey: ['relationships'] }); handleClose(); }}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ['relationships-active'] }); handleClose(); }}
         />
       )}
     </div>

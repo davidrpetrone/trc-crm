@@ -64,7 +64,10 @@ export default function ContactsPage() {
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, is_active }) => api.patch(`/contacts/${id}/active`, { is_active }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+      qc.invalidateQueries({ queryKey: ['relationships-active'] });
+    },
   });
 
   function openAdd() { setEditing(null); setForm(BLANK); setShowForm(true); }

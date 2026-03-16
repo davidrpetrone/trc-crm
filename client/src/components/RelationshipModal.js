@@ -91,7 +91,7 @@ export default function RelationshipModal({ relationship, onClose, onSaved }) {
         account_id: form.account_id || null,
         owner_id: form.owner_id || null,
       };
-      if (relationship) {
+      if (relationship?.id) {
         await api.put(`/relationships/${relationship.id}`, payload);
       } else {
         await api.post('/relationships', payload);
@@ -108,7 +108,7 @@ export default function RelationshipModal({ relationship, onClose, onSaved }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h2>{relationship ? 'Edit Relationship' : 'Add Relationship'}</h2>
+          <h2>{relationship?.id ? 'Edit Relationship' : 'Add Relationship'}</h2>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit} className="modal-body">
@@ -198,7 +198,7 @@ export default function RelationshipModal({ relationship, onClose, onSaved }) {
           <div className="modal-footer">
             <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Saving...' : relationship ? 'Save Changes' : 'Add Relationship'}
+              {saving ? 'Saving...' : relationship?.id ? 'Save Changes' : 'Add Relationship'}
             </button>
           </div>
         </form>

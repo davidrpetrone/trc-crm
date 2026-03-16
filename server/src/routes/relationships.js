@@ -29,6 +29,29 @@ router.get('/', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.get('/active-contacts', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        c.id AS contact_id,
+        TRIM(COALESCE(c.first_name,'') || ' ' || COALESCE(NULLIF(c.mi,''),'') || ' ' || COALESCE(c.last_name,'')) AS contact_name,
+        c.title AS contact_title, c.email AS contact_email,
+        COALESCE(ra.name, ca.name) AS account_name,
+        r.id, r.stage, r.tier, r.last_touch, r.next_action_date, r.next_action_notes,
+        r.ea_linked, r.sales_motion, r.notes, r.owner_id, r.account_id,
+        u.name AS owner_name
+      FROM contacts c
+      LEFT JOIN relationships r ON r.contact_id = c.id
+      LEFT JOIN accounts ca ON ca.id = c.account_id
+      LEFT JOIN accounts ra ON ra.id = r.account_id
+      LEFT JOIN users u ON u.id = r.owner_id
+      WHERE COALESCE(c.is_active, true) = true
+      ORDER BY r.next_action_date ASC NULLS LAST, c.last_name, c.first_name
+    `);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/stale', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`

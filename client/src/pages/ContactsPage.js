@@ -62,6 +62,11 @@ export default function ContactsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
   });
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ id, is_active }) => api.patch(`/contacts/${id}/active`, { is_active }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
+  });
+
   function openAdd() { setEditing(null); setForm(BLANK); setShowForm(true); }
   function openEdit(c) {
     setEditing(c);
@@ -103,7 +108,7 @@ export default function ContactsPage() {
   return (
     <div className="list-page">
       <div className="page-header">
-        <h1 className="page-title">Contacts</h1>
+        <h1 className="page-title">All Relationships</h1>
         <button className="btn-primary" onClick={openAdd}>+ Add Contact</button>
       </div>
 
@@ -142,6 +147,7 @@ export default function ContactsPage() {
           <table>
             <thead>
               <tr>
+                <th>Active</th>
                 <th>Type</th>
                 <th>Name</th>
                 <th>Title</th>
@@ -157,11 +163,27 @@ export default function ContactsPage() {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={11} style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 20 }}>No contacts found.</td></tr>
+                <tr><td colSpan={12} style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 20 }}>No contacts found.</td></tr>
               ) : filtered.map(c => {
                 const fu = needsFollowUp(c.last_contact);
+                const isActive = c.is_active !== false;
                 return (
-                  <tr key={c.id}>
+                  <tr key={c.id} style={{ opacity: isActive ? 1 : 0.5 }}>
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        title={isActive ? 'Mark inactive' : 'Mark active'}
+                        onClick={() => toggleActiveMutation.mutate({ id: c.id, is_active: !isActive })}
+                        style={{
+                          background: isActive ? '#3fb95022' : '#30363d',
+                          border: `1px solid ${isActive ? '#3fb950' : '#484f58'}`,
+                          borderRadius: 20, padding: '2px 10px', cursor: 'pointer',
+                          color: isActive ? '#3fb950' : '#8b949e', fontSize: 11, fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {isActive ? 'Active' : 'Inactive'}
+                      </button>
+                    </td>
                     <td>
                       <span className={`type-badge ${c.type === 'Prospect' ? 'prospect' : 'contact'}`}>
                         {c.type || 'Contact'}

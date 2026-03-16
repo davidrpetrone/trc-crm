@@ -18,11 +18,11 @@ const BASE_QUERY = `
 
 router.get('/', requireAuth, async (req, res) => {
   const { owner_id, stage, tier } = req.query;
-  const conditions = [], params = [];
+  const conditions = ['COALESCE(c.is_active, true) = true'], params = [];
   if (owner_id) { params.push(owner_id); conditions.push(`r.owner_id=$${params.length}`); }
   if (stage)    { params.push(stage);    conditions.push(`r.stage=$${params.length}`); }
   if (tier)     { params.push(tier);     conditions.push(`r.tier=$${params.length}`); }
-  const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
+  const where = ' WHERE ' + conditions.join(' AND ');
   try {
     const { rows } = await pool.query(`${BASE_QUERY}${where} ORDER BY r.next_action_date ASC NULLS LAST`, params);
     res.json(rows);

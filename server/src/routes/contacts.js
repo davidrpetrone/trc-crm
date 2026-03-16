@@ -10,7 +10,8 @@ const BASE_QUERY = `
   SELECT c.*,
     ${NAME_EXPR} AS name,
     a.name AS account_name,
-    u.name AS trc_owner_name
+    u.name AS trc_owner_name,
+    COALESCE(c.is_active, true) AS is_active
   FROM contacts c
   LEFT JOIN accounts a ON a.id = c.account_id
   LEFT JOIN users u ON u.id = c.trc_owner_id
@@ -86,6 +87,14 @@ router.put('/:id', requireAuth, async (req, res) => {
       last_contact || null, notes,
       req.params.id
     ]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/:id/active', requireAuth, async (req, res) => {
+  const { is_active } = req.body;
+  try {
+    await pool.query('UPDATE contacts SET is_active=$1, updated_at=NOW() WHERE id=$2', [is_active, req.params.id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

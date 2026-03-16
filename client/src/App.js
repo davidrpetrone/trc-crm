@@ -10,6 +10,7 @@ import ForecastingPage from './pages/ForecastingPage';
 import AccountsPage from './pages/AccountsPage';
 import ContactsPage from './pages/ContactsPage';
 import UserProfilesPage from './pages/UserProfilesPage';
+import CommittedEngagementsPage from './pages/CommittedEngagementsPage';
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -31,6 +32,7 @@ function AppRoutes() {
         <Route path="forecasting" element={<PrivateRoute roles={['admin', 'finance']}><ForecastingPage /></PrivateRoute>} />
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="contacts" element={<ContactsPage />} />
+        <Route path="committed" element={<CommittedEngagementsPage />} />
         <Route path="user-profiles" element={<PrivateRoute roles={['admin']}><UserProfilesPage /></PrivateRoute>} />
       </Route>
     </Routes>

@@ -13,7 +13,7 @@ const ACTIVE_STAGES = [
   'Verbal Alignment',
 ];
 
-const CLOSED_STAGES = ['Closed Won', 'Closed Lost', 'Closed Deferred'];
+const CLOSED_STAGES = ['Closed Lost', 'Closed Deferred'];
 
 const STAGE_COLORS = {
   'Qualified':               { header: '#388bfd', bg: '#388bfd11' },
@@ -85,7 +85,6 @@ export default function PipelinePage() {
     .filter(o => ACTIVE_STAGES.includes(o.stage))
     .reduce((s, o) => s + ((o.estimated_value || 0) * (o.confidence || 0) / 100), 0);
 
-  const closedWon = byStage('Closed Won');
   const closedLost = byStage('Closed Lost');
   const closedDeferred = byStage('Closed Deferred');
 
@@ -173,12 +172,11 @@ export default function PipelinePage() {
           </div>
 
           {/* Closed deals */}
-          {(closedWon.length + closedLost.length + closedDeferred.length) > 0 && (
+          {(closedLost.length + closedDeferred.length) > 0 && (
             <div className="closed-section">
               <h2 className="section-title">Closed Deals</h2>
               <div className="closed-grid">
                 {[
-                  { label: 'Won', items: closedWon, color: '#3fb950' },
                   { label: 'Lost', items: closedLost, color: '#f85149' },
                   { label: 'Deferred', items: closedDeferred, color: '#8b949e' },
                 ].map(({ label, items, color }) => (

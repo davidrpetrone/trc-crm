@@ -13,6 +13,9 @@ const STAGES = [
   'Closed Won',
   'Closed Lost',
   'Closed Deferred',
+  'On Hold',
+  'Active',
+  'Complete',
 ];
 
 const SALES_MOTIONS = ['Relationship-led', 'Referral/PE-led', 'Market-driven'];

@@ -78,7 +78,7 @@ export default function RelationshipsPage() {
   return (
     <div className="rel-page">
       <div className="page-header">
-        <h1 className="page-title">Relationships</h1>
+        <h1 className="page-title">Active Relationships</h1>
         <button className="btn-primary" onClick={handleAdd}>+ Add Relationship</button>
       </div>
 

@@ -115,6 +115,9 @@ async function initDb() {
     )
   `);
 
+  // Add is_active to contacts if missing
+  await pool.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+
   // Migrate role constraint to include consultant, drop support
   await pool.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
   await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('admin','director','finance','consultant'))`);

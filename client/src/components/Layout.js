@@ -4,12 +4,13 @@ import './Layout.css';
 
 const NAV = [
   { to: '/', label: 'Dashboard', exact: true },
-  { to: '/relationships', label: 'Relationships' },
+  { to: '/relationships', label: 'Active Relationships' },
+  { to: '/contacts', label: 'All Relationships' },
   { to: '/pipeline', label: 'Pipeline' },
+  { to: '/committed', label: 'Committed Engagements' },
   { to: '/director-pack', label: 'Director Pack', roles: ['admin', 'director'] },
   { to: '/forecasting', label: 'Forecasting', roles: ['admin', 'finance'] },
   { to: '/accounts', label: 'Accounts' },
-  { to: '/contacts', label: 'Contacts' },
   { to: '/user-profiles', label: 'User Profiles', roles: ['admin'] },
 ];
 

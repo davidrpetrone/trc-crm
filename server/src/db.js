@@ -12,7 +12,7 @@ async function initDb() {
       name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT,
-      role TEXT NOT NULL CHECK(role IN ('admin','director','support','finance')),
+      role TEXT NOT NULL CHECK(role IN ('admin','director','finance','consultant')),
       azure_oid TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
@@ -115,6 +115,12 @@ async function initDb() {
     )
   `);
 
+  // Migrate role constraint to include consultant, drop support
+  await pool.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
+  await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('admin','director','finance','consultant'))`);
+  // Update any existing 'support' roles to 'consultant'
+  await pool.query(`UPDATE users SET role='consultant' WHERE role='support'`);
+
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_relationships_owner ON relationships(owner_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_relationships_stage  ON relationships(stage)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_opportunities_owner  ON opportunities(owner_id)`);
@@ -128,7 +134,7 @@ async function initDb() {
     const hash = bcrypt.hashSync('admin123', 10);
     await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Dave Petrone',  'DavidP@trcadvisory.com',  hash, 'admin']);
     await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Tim Holloway',  'tim@trcadvisory.com',     hash, 'director']);
-    await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Melissa Grant', 'melissa@trcadvisory.com', hash, 'support']);
+    await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Melissa Grant', 'melissa@trcadvisory.com', hash, 'consultant']);
     await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Hemal Patel',   'hemal@trcadvisory.com',   hash, 'finance']);
     console.log('Seeded users. Login: DavidP@trcadvisory.com / admin123');
   }

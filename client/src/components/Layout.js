@@ -10,6 +10,7 @@ const NAV = [
   { to: '/forecasting', label: 'Forecasting', roles: ['admin', 'finance'] },
   { to: '/accounts', label: 'Accounts' },
   { to: '/contacts', label: 'Contacts' },
+  { to: '/user-profiles', label: 'User Profiles', roles: ['admin'] },
 ];
 
 export default function Layout() {

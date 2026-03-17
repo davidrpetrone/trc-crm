@@ -13,7 +13,25 @@ const ACTIVE_STAGES = [
   'Verbal Alignment',
 ];
 
-const CLOSED_STAGES = ['Closed Lost', 'Closed Deferred'];
+const CLOSED_STAGES = ['Closed Won', 'Closed Lost', 'Closed Deferred'];
+
+const ALL_BOARD_STAGES = [...ACTIVE_STAGES, ...CLOSED_STAGES];
+
+// Sort order for list view: furthest progressed first, closed at bottom
+const STAGE_SORT = {
+  'Verbal Alignment': 0,
+  'Proposal Delivered': 1,
+  'Proposal in Development': 2,
+  'Solution Shaping': 3,
+  'Discovery': 4,
+  'Qualified': 5,
+  'Active': 6,
+  'On Hold': 7,
+  'Complete': 8,
+  'Closed Won': 9,
+  'Closed Lost': 10,
+  'Closed Deferred': 11,
+};
 
 const STAGE_COLORS = {
   'Qualified':               { header: '#388bfd', bg: '#388bfd11' },
@@ -25,6 +43,24 @@ const STAGE_COLORS = {
   'Closed Won':              { header: '#3fb950', bg: '#3fb95011' },
   'Closed Lost':             { header: '#f85149', bg: '#f8514911' },
   'Closed Deferred':         { header: '#8b949e', bg: '#8b949e11' },
+  'On Hold':                 { header: '#d4a843', bg: '#d4a84311' },
+  'Active':                  { header: '#388bfd', bg: '#388bfd11' },
+  'Complete':                { header: '#8b949e', bg: '#8b949e11' },
+};
+
+const CHIP_COLORS = {
+  'Qualified':               { bg: '#388bfd22', text: '#388bfd' },
+  'Discovery':               { bg: '#3fb95022', text: '#3fb950' },
+  'Solution Shaping':        { bg: '#d4a84322', text: '#d4a843' },
+  'Proposal in Development': { bg: '#e3620922', text: '#e36209' },
+  'Proposal Delivered':      { bg: '#f7816622', text: '#f78166' },
+  'Verbal Alignment':        { bg: '#a371f722', text: '#a371f7' },
+  'Closed Won':              { bg: '#3fb95022', text: '#3fb950' },
+  'Closed Lost':             { bg: '#f8514922', text: '#f85149' },
+  'Closed Deferred':         { bg: '#8b949e22', text: '#8b949e' },
+  'On Hold':                 { bg: '#d4a84322', text: '#d4a843' },
+  'Active':                  { bg: '#388bfd22', text: '#388bfd' },
+  'Complete':                { bg: '#8b949e22', text: '#8b949e' },
 };
 
 function fmt(val) {
@@ -34,6 +70,7 @@ function fmt(val) {
 
 export default function PipelinePage() {
   const qc = useQueryClient();
+  const [view, setView] = useState('board');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [dragOver, setDragOver] = useState(null);
@@ -85,8 +122,13 @@ export default function PipelinePage() {
     .filter(o => ACTIVE_STAGES.includes(o.stage))
     .reduce((s, o) => s + ((o.estimated_value || 0) * (o.confidence || 0) / 100), 0);
 
-  const closedLost = byStage('Closed Lost');
-  const closedDeferred = byStage('Closed Deferred');
+  // List view: all opps sorted by stage progression
+  const sortedOpps = [...opportunities].sort((a, b) => {
+    const sa = STAGE_SORT[a.stage] ?? 99;
+    const sb = STAGE_SORT[b.stage] ?? 99;
+    if (sa !== sb) return sa - sb;
+    return (b.estimated_value || 0) - (a.estimated_value || 0);
+  });
 
   return (
     <div className="pipeline-page">
@@ -101,120 +143,138 @@ export default function PipelinePage() {
             <span style={{ color: 'var(--gold)' }}>{fmt(totalWeighted)} weighted</span>
           </div>
         </div>
-        <button className="btn-primary" onClick={openAdd}>+ Add Opportunity</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="view-toggle">
+            <button
+              className={view === 'board' ? 'view-btn active' : 'view-btn'}
+              onClick={() => setView('board')}
+            >Board</button>
+            <button
+              className={view === 'list' ? 'view-btn active' : 'view-btn'}
+              onClick={() => setView('list')}
+            >List</button>
+          </div>
+          <button className="btn-primary" onClick={openAdd}>+ Add Opportunity</button>
+        </div>
       </div>
 
       {isLoading ? (
         <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
-      ) : (
-        <>
-          {/* Kanban board */}
-          <div className="kanban-board">
-            {ACTIVE_STAGES.map(stage => {
-              const cards = byStage(stage);
-              const color = STAGE_COLORS[stage];
-              const isOver = dragOver === stage;
-              return (
-                <div
-                  key={stage}
-                  className={`kanban-col${isOver ? ' drag-over' : ''}`}
-                  onDragOver={e => { e.preventDefault(); setDragOver(stage); }}
-                  onDragLeave={() => setDragOver(null)}
-                  onDrop={e => handleDrop(e, stage)}
-                >
-                  <div className="kanban-col-header" style={{ borderTopColor: color.header }}>
-                    <span className="kanban-col-title">{stage}</span>
-                    <div className="kanban-col-meta">
-                      <span className="kanban-count">{cards.length}</span>
-                      <span className="kanban-total">{fmt(stageTotal(stage))}</span>
-                    </div>
-                  </div>
-                  <div className="kanban-cards">
-                    {cards.map(opp => (
-                      <div
-                        key={opp.id}
-                        className="kanban-card"
-                        draggable
-                        onDragStart={e => handleDragStart(e, opp)}
-                        onClick={() => openEdit(opp)}
-                        style={{ background: color.bg }}
-                      >
-                        <div className="card-name">{opp.name}</div>
-                        <div className="card-account">{opp.account_name || '—'}</div>
-                        <div className="card-meta">
-                          <span className="card-value">{fmt(opp.estimated_value)}</span>
-                          {opp.confidence != null && (
-                            <span className="card-confidence">{opp.confidence}%</span>
-                          )}
-                        </div>
-                        <div className="card-dates">
-                          {opp.start_date && <span>Start: {opp.start_date}</span>}
-                          {opp.close_date && <span>Close: {opp.close_date}</span>}
-                        </div>
-                        {(opp.duration_weeks || opp.fte_per_month) && (
-                          <div className="card-resource">
-                            {opp.duration_weeks && <span>{opp.duration_weeks}w</span>}
-                            {opp.fte_per_month && <span>{opp.fte_per_month} FTE/mo</span>}
-                          </div>
-                        )}
-                        {opp.owner_name && (
-                          <div className="card-owner">{opp.owner_name}</div>
-                        )}
-                      </div>
-                    ))}
-                    {cards.length === 0 && (
-                      <div className="kanban-empty">Drop here</div>
-                    )}
+      ) : view === 'board' ? (
+        /* ── Board View ── */
+        <div className="kanban-board kanban-board-wide">
+          {ALL_BOARD_STAGES.map(stage => {
+            const cards = byStage(stage);
+            const color = STAGE_COLORS[stage];
+            const isOver = dragOver === stage;
+            return (
+              <div
+                key={stage}
+                className={`kanban-col${isOver ? ' drag-over' : ''}`}
+                onDragOver={e => { e.preventDefault(); setDragOver(stage); }}
+                onDragLeave={() => setDragOver(null)}
+                onDrop={e => handleDrop(e, stage)}
+              >
+                <div className="kanban-col-header" style={{ borderTopColor: color.header }}>
+                  <span className="kanban-col-title">{stage}</span>
+                  <div className="kanban-col-meta">
+                    <span className="kanban-count">{cards.length}</span>
+                    <span className="kanban-total">{fmt(stageTotal(stage))}</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Closed deals */}
-          {(closedLost.length + closedDeferred.length) > 0 && (
-            <div className="closed-section">
-              <h2 className="section-title">Closed Deals</h2>
-              <div className="closed-grid">
-                {[
-                  { label: 'Lost', items: closedLost, color: '#f85149' },
-                  { label: 'Deferred', items: closedDeferred, color: '#8b949e' },
-                ].map(({ label, items, color }) => (
-                  items.length > 0 && (
-                    <div key={label} className="card">
-                      <div className="closed-header" style={{ color }}>
-                        Closed {label} — {items.length} deal{items.length !== 1 ? 's' : ''} · {fmt(items.reduce((s, o) => s + (o.estimated_value || 0), 0))}
+                <div className="kanban-cards">
+                  {cards.map(opp => (
+                    <div
+                      key={opp.id}
+                      className="kanban-card"
+                      draggable
+                      onDragStart={e => handleDragStart(e, opp)}
+                      onClick={() => openEdit(opp)}
+                      style={{ background: color.bg }}
+                    >
+                      <div className="card-name">{opp.name}</div>
+                      <div className="card-account">{opp.account_name || '—'}</div>
+                      <div className="card-meta">
+                        <span className="card-value">{fmt(opp.estimated_value)}</span>
+                        {opp.confidence != null && (
+                          <span className="card-confidence">{opp.confidence}%</span>
+                        )}
                       </div>
-                      <table>
-                        <thead>
-                          <tr><th>Name</th><th>Account</th><th>Value</th><th>Owner</th><th></th></tr>
-                        </thead>
-                        <tbody>
-                          {items.map(opp => (
-                            <tr key={opp.id}>
-                              <td style={{ fontWeight: 500 }}>{opp.name}</td>
-                              <td style={{ color: 'var(--text-muted)' }}>{opp.account_name || '—'}</td>
-                              <td>{fmt(opp.estimated_value)}</td>
-                              <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{opp.owner_name || '—'}</td>
-                              <td>
-                                <div className="row-actions">
-                                  <button className="btn-secondary" style={{ padding: '4px 10px' }} onClick={() => openEdit(opp)}>Edit</button>
-                                  <button className="btn-danger" style={{ padding: '4px 10px' }} onClick={() => {
-                                    if (window.confirm(`Delete "${opp.name}"?`)) deleteMutation.mutate(opp.id);
-                                  }}>Delete</button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <div className="card-dates">
+                        {opp.start_date && <span>Start: {opp.start_date}</span>}
+                        {opp.close_date && <span>Close: {opp.close_date}</span>}
+                      </div>
+                      {(opp.duration_weeks || opp.fte_per_month) && (
+                        <div className="card-resource">
+                          {opp.duration_weeks && <span>{opp.duration_weeks}w</span>}
+                          {opp.fte_per_month && <span>{opp.fte_per_month} FTE/mo</span>}
+                        </div>
+                      )}
+                      {opp.owner_name && (
+                        <div className="card-owner">{opp.owner_name}</div>
+                      )}
                     </div>
-                  )
-                ))}
+                  ))}
+                  {cards.length === 0 && (
+                    <div className="kanban-empty">Drop here</div>
+                  )}
+                </div>
               </div>
-            </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* ── List View ── */
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {sortedOpps.length === 0 ? (
+            <p style={{ padding: 20, color: 'var(--text-muted)' }}>No opportunities yet.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Opportunity</th>
+                  <th>Account</th>
+                  <th>Stage</th>
+                  <th>Value</th>
+                  <th>Confidence</th>
+                  <th>Close Date</th>
+                  <th>Director</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedOpps.map(opp => {
+                  const chip = CHIP_COLORS[opp.stage] || { bg: '#8b949e22', text: '#8b949e' };
+                  return (
+                    <tr key={opp.id}>
+                      <td style={{ fontWeight: 500 }}>{opp.name}</td>
+                      <td style={{ color: 'var(--text-muted)' }}>{opp.account_name || '—'}</td>
+                      <td>
+                        <span className="stage-chip" style={{ background: chip.bg, color: chip.text }}>
+                          {opp.stage}
+                        </span>
+                      </td>
+                      <td>{fmt(opp.estimated_value)}</td>
+                      <td style={{ color: 'var(--text-muted)' }}>
+                        {opp.confidence != null ? `${opp.confidence}%` : '—'}
+                      </td>
+                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{opp.close_date || '—'}</td>
+                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{opp.owner_name || '—'}</td>
+                      <td>
+                        <div className="row-actions">
+                          <button className="btn-secondary" style={{ padding: '4px 10px' }} onClick={() => openEdit(opp)}>Edit</button>
+                          <button className="btn-danger" style={{ padding: '4px 10px' }} onClick={() => {
+                            if (window.confirm(`Delete "${opp.name}"?`)) deleteMutation.mutate(opp.id);
+                          }}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
-        </>
+        </div>
       )}
 
       {modalOpen && (

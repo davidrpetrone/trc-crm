@@ -12,6 +12,8 @@ const STAGE_COLORS = {
   'Verbal Alignment':        '#a371f7',
 };
 
+const CHART_HEIGHT = 150;
+
 function fmt(val) {
   if (!val && val !== 0) return '—';
   return '$' + Math.round(val).toLocaleString();
@@ -35,7 +37,7 @@ function HBar({ value, max, color, height = 8 }) {
   );
 }
 
-const TABS = ['Pipeline by Stage', 'Monthly Forecast', 'Resource Detail'];
+const TABS = ['Pipeline by Stage', 'Revenue Outlook'];
 
 export default function ForecastingPage() {
   const [tab, setTab] = useState('Pipeline by Stage');
@@ -51,14 +53,36 @@ export default function ForecastingPage() {
     queryFn: () => api.get('/opportunities/resource-plan').then(r => r.data),
   });
 
+  // Fetch financial inputs for years covered in resource plan
+  const years = [...new Set(resourcePlan.map(m => m.month.split('-')[0]))];
+  const primaryYear = years[0] || new Date().getFullYear();
+
+  const { data: finInputs = [] } = useQuery({
+    queryKey: ['financial-inputs', primaryYear],
+    queryFn: () => api.get(`/financial-inputs?year=${primaryYear}`).then(r => r.data),
+    enabled: resourcePlan.length > 0,
+  });
+
+  // Build lookup: "YYYY-MM" → { target, prior }
+  const finMap = {};
+  finInputs.forEach(r => {
+    const key = `${r.year}-${String(r.month).padStart(2, '0')}`;
+    finMap[key] = { target: r.target_revenue || 0, prior: r.prior_year_revenue || 0 };
+  });
+
   const totalRevenue  = forecast.reduce((s, r) => s + (r.total_value    || 0), 0);
   const totalWeighted = forecast.reduce((s, r) => s + (r.weighted_value || 0), 0);
   const totalFte      = forecast.reduce((s, r) => s + (r.total_fte      || 0), 0);
   const totalWFte     = forecast.reduce((s, r) => s + (r.weighted_fte   || 0), 0);
 
-  const maxRev = resourcePlan.length ? Math.max(...resourcePlan.map(m => m.revenue))          : 1;
-  const maxWRev= resourcePlan.length ? Math.max(...resourcePlan.map(m => m.weighted_revenue)) : 1;
-  const maxFte = resourcePlan.length ? Math.max(...resourcePlan.map(m => m.fte))              : 1;
+  // For Revenue Outlook chart scale — include targets and prior year in max calc
+  const maxPlanRev = resourcePlan.length ? Math.max(...resourcePlan.map(m => m.weighted_revenue)) : 1;
+  const maxTargetRev = Object.values(finMap).reduce((m, v) => Math.max(m, v.target), 0);
+  const maxPriorRev = Object.values(finMap).reduce((m, v) => Math.max(m, v.prior), 0);
+  const maxRev = Math.max(maxPlanRev, maxTargetRev, maxPriorRev, 1);
+
+  const maxWRev = resourcePlan.length ? Math.max(...resourcePlan.map(m => m.weighted_revenue)) : 1;
+  const maxFte  = resourcePlan.length ? Math.max(...resourcePlan.map(m => m.weighted_fte))      : 1;
 
   return (
     <div className="forecast-page">
@@ -144,8 +168,8 @@ export default function ForecastingPage() {
         </div>
       )}
 
-      {/* ── Tab 2: Monthly Forecast ── */}
-      {tab === 'Monthly Forecast' && (
+      {/* ── Tab 2: Revenue Outlook ── */}
+      {tab === 'Revenue Outlook' && (
         lr ? <p className="loading">Loading...</p> :
         resourcePlan.length === 0
           ? (
@@ -159,27 +183,33 @@ export default function ForecastingPage() {
               {/* Visual chart */}
               <div className="card monthly-chart">
                 <div className="chart-legend">
-                  <span><span className="dot-swatch" style={{ background: 'var(--gold)' }} /> Weighted Revenue</span>
-                  <span><span className="dot-swatch" style={{ background: 'var(--blue)' }} /> Total Revenue</span>
-                  <span><span className="dot-swatch" style={{ background: '#a371f7' }} /> Weighted FTE (×$10k scale)</span>
+                  <span><span className="dot-swatch" style={{ background: 'var(--gold)' }} /> Committed + Weighted Revenue</span>
+                  <span><span className="line-swatch" style={{ color: '#f85149' }} /> Target Revenue</span>
+                  <span><span className="line-swatch" style={{ color: '#8b949e' }} /> Prior Year Actual</span>
                 </div>
                 <div className="chart-bars">
-                  {resourcePlan.map(m => (
-                    <div key={m.month} className="chart-col">
-                      <div className="chart-stacked">
-                        <div className="chart-bar-wrap" title={`Total: ${fmt(m.revenue)}`}>
-                          <div className="chart-bar" style={{ height: `${(m.revenue / maxRev) * 140}px`, background: 'var(--blue)', opacity: 0.4 }} />
+                  {resourcePlan.map(m => {
+                    const fin = finMap[m.month] || { target: 0, prior: 0 };
+                    const barH = maxRev > 0 ? (m.weighted_revenue / maxRev) * CHART_HEIGHT : 0;
+                    const targetH = maxRev > 0 && fin.target > 0 ? (fin.target / maxRev) * CHART_HEIGHT : null;
+                    const priorH = maxRev > 0 && fin.prior > 0 ? (fin.prior / maxRev) * CHART_HEIGHT : null;
+                    return (
+                      <div key={m.month} className="chart-col">
+                        <div className="chart-stacked" title={`${fmtMonth(m.month)}\nCommitted+Weighted: ${fmt(m.weighted_revenue)}${fin.target ? '\nTarget: ' + fmt(fin.target) : ''}${fin.prior ? '\nPrior Year: ' + fmt(fin.prior) : ''}`}>
+                          <div className="chart-bar-wrap">
+                            <div className="chart-bar" style={{ height: `${Math.max(2, barH)}px`, background: 'var(--gold)' }} />
+                          </div>
+                          {targetH !== null && (
+                            <div className="overlay-marker overlay-target" style={{ bottom: `${targetH}px` }} />
+                          )}
+                          {priorH !== null && (
+                            <div className="overlay-marker overlay-prior" style={{ bottom: `${priorH}px` }} />
+                          )}
                         </div>
-                        <div className="chart-bar-wrap" title={`Weighted: ${fmt(m.weighted_revenue)}`}>
-                          <div className="chart-bar" style={{ height: `${(m.weighted_revenue / maxRev) * 140}px`, background: 'var(--gold)' }} />
-                        </div>
-                        <div className="chart-bar-wrap" title={`Wtd FTE: ${fmtFte(m.weighted_fte)}`}>
-                          <div className="chart-bar" style={{ height: `${(m.weighted_fte / maxFte) * 140}px`, background: '#a371f7', opacity: 0.7 }} />
-                        </div>
+                        <div className="chart-label">{fmtMonth(m.month)}</div>
                       </div>
-                      <div className="chart-label">{fmtMonth(m.month)}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -189,18 +219,17 @@ export default function ForecastingPage() {
                   <thead>
                     <tr>
                       <th>Month</th>
-                      <th>Total Revenue</th>
-                      <th>Weighted Revenue</th>
+                      <th>Forecasted Revenue</th>
                       <th style={{ width: 140 }}></th>
-                      <th>FTE Demand</th>
-                      <th>Weighted FTE</th>
-                      <th style={{ width: 140 }}></th>
+                      <th>Revenue Target</th>
+                      <th>Prior Year Actual</th>
                       <th>Engagements</th>
                     </tr>
                   </thead>
                   <tbody>
                     {resourcePlan.map(m => {
                       const isOpen = expandedMonth === m.month;
+                      const fin = finMap[m.month] || { target: 0, prior: 0 };
                       return [
                         <tr
                           key={m.month}
@@ -209,12 +238,14 @@ export default function ForecastingPage() {
                           style={{ cursor: 'pointer' }}
                         >
                           <td className="fw">{fmtMonth(m.month)}</td>
-                          <td>{fmt(m.revenue)}</td>
                           <td className="gold fw">{fmt(m.weighted_revenue)}</td>
                           <td><HBar value={m.weighted_revenue} max={maxWRev} color="var(--gold)" /></td>
-                          <td>{fmtFte(m.fte)}</td>
-                          <td className="gold fw">{fmtFte(m.weighted_fte)}</td>
-                          <td><HBar value={m.weighted_fte} max={maxFte} color="#a371f7" /></td>
+                          <td style={{ color: fin.target ? '#f85149' : 'var(--text-muted)' }}>
+                            {fin.target > 0 ? fmt(fin.target) : '—'}
+                          </td>
+                          <td style={{ color: 'var(--text-muted)' }}>
+                            {fin.prior > 0 ? fmt(fin.prior) : '—'}
+                          </td>
                           <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                             {m.opportunities.length} {isOpen ? '▲' : '▼'}
                           </td>
@@ -222,15 +253,13 @@ export default function ForecastingPage() {
                         isOpen && m.opportunities.map((o, i) => (
                           <tr key={`${m.month}-${i}`} className="month-detail-row">
                             <td style={{ paddingLeft: 24, color: 'var(--text-muted)', fontSize: 12 }}>{o.name}</td>
-                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fmt(o.revenue_slice)}</td>
                             <td style={{ fontSize: 12 }} className="gold">{fmt(o.weighted_revenue_slice)}</td>
                             <td />
-                            <td style={{ fontSize: 12 }}>{fmtFte(o.fte)}</td>
-                            <td style={{ fontSize: 12 }} className="gold">{fmtFte(o.weighted_fte)}</td>
-                            <td />
+                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{o.account_name || '—'}</td>
                             <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                              <span className="stage-chip" style={{ background: STAGE_COLORS[o.stage] + '22', color: STAGE_COLORS[o.stage] }}>{o.stage}</span>
+                              <span className="stage-chip" style={{ background: (STAGE_COLORS[o.stage] || '#8b949e') + '22', color: STAGE_COLORS[o.stage] || '#8b949e' }}>{o.stage}</span>
                             </td>
+                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{o.owner_name || '—'}</td>
                           </tr>
                         ))
                       ];
@@ -240,63 +269,6 @@ export default function ForecastingPage() {
               </div>
             </>
           )
-      )}
-
-      {/* ── Tab 3: Resource Detail ── */}
-      {tab === 'Resource Detail' && (
-        lr ? <p className="loading">Loading...</p> :
-        resourcePlan.length === 0
-          ? (
-            <div className="card">
-              <p style={{ color: 'var(--text-muted)' }}>No data yet. Add start date, duration, and FTE/mo to opportunities.</p>
-            </div>
-          ) : resourcePlan.map(month => (
-            <div key={month.month} className="card month-card">
-              <div className="month-header">
-                <div className="month-title">{fmtMonth(month.month)}</div>
-                <div className="month-kpis">
-                  <div className="month-kpi">
-                    <span className="month-kpi-label">Revenue</span>
-                    <span className="month-kpi-value">{fmt(month.revenue)}</span>
-                    <span className="month-kpi-sub">({fmt(month.weighted_revenue)} wtd)</span>
-                  </div>
-                  <div className="month-kpi">
-                    <span className="month-kpi-label">FTE Demand</span>
-                    <span className="month-kpi-value gold">{fmtFte(month.fte)}</span>
-                    <span className="month-kpi-sub">({fmtFte(month.weighted_fte)} wtd)</span>
-                  </div>
-                </div>
-                <div className="month-minibars">
-                  <div className="minibar-row"><span>Rev</span><HBar value={month.revenue} max={maxRev} color="var(--blue)" /><span>{fmt(month.revenue)}</span></div>
-                  <div className="minibar-row"><span>FTE</span><HBar value={month.fte} max={maxFte} color="var(--gold)" /><span>{fmtFte(month.fte)}</span></div>
-                </div>
-              </div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Opportunity</th><th>Account</th><th>Stage</th><th>Service Line</th>
-                    <th>Owner</th><th>FTE/mo</th><th>Wtd FTE</th><th>Rev/mo</th><th>$/FTE/mo</th><th>Wtd Rev</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {month.opportunities.map((o, i) => (
-                    <tr key={i}>
-                      <td className="fw">{o.name}</td>
-                      <td className="muted">{o.account_name || '—'}</td>
-                      <td><span className="stage-chip" style={{ background: STAGE_COLORS[o.stage] + '22', color: STAGE_COLORS[o.stage] }}>{o.stage}</span></td>
-                      <td className="muted small">{o.service_line || '—'}</td>
-                      <td className="muted small">{o.owner_name || '—'}</td>
-                      <td className="fw">{fmtFte(o.fte)}</td>
-                      <td className="gold">{fmtFte(o.weighted_fte)}</td>
-                      <td>{fmt(o.revenue_slice)}</td>
-                      <td className="muted small">{o.billing_rate ? fmt(o.billing_rate) : '—'}</td>
-                      <td className="gold fw">{fmt(o.weighted_revenue_slice)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))
       )}
     </div>
   );

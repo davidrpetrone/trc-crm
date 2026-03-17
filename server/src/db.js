@@ -130,6 +130,16 @@ async function initDb() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_opportunities_stage  ON opportunities(stage)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_activities_entity    ON activities(entity_type, entity_id)`);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS financial_inputs (
+      year INTEGER NOT NULL,
+      month INTEGER NOT NULL CHECK(month BETWEEN 1 AND 12),
+      target_revenue REAL DEFAULT 0,
+      prior_year_revenue REAL DEFAULT 0,
+      PRIMARY KEY (year, month)
+    )
+  `);
+
   // Seed users on first boot
   const { rows } = await pool.query('SELECT COUNT(*)::int AS c FROM users');
   if (rows[0].c === 0) {

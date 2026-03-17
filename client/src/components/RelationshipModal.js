@@ -25,6 +25,7 @@ const BLANK = {
   ea_linked: '',
   sales_motion: '',
   notes: '',
+  is_active: true,
 };
 
 export default function RelationshipModal({ relationship, onClose, onSaved }) {
@@ -59,6 +60,7 @@ export default function RelationshipModal({ relationship, onClose, onSaved }) {
         ea_linked: relationship.ea_linked || '',
         sales_motion: relationship.sales_motion || '',
         notes: relationship.notes || '',
+        is_active: relationship.is_active !== false,
       });
     } else {
       setForm(BLANK);
@@ -95,6 +97,10 @@ export default function RelationshipModal({ relationship, onClose, onSaved }) {
         await api.put(`/relationships/${relationship.id}`, payload);
       } else {
         await api.post('/relationships', payload);
+      }
+      // Sync active status on the contact
+      if (form.contact_id) {
+        await api.patch(`/contacts/${form.contact_id}/active`, { is_active: form.is_active !== false });
       }
       onSaved();
     } catch (err) {
@@ -191,6 +197,18 @@ export default function RelationshipModal({ relationship, onClose, onSaved }) {
           <div className="form-group">
             <label>Notes</label>
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Background, context, relationship history..." />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 14 }}>
+            <label style={{ marginBottom: 6 }}>
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={e => set('is_active', e.target.checked)}
+                style={{ width: 'auto', marginRight: 8 }}
+              />
+              Active Contact
+            </label>
           </div>
 
           {error && <div className="form-error">{error}</div>}

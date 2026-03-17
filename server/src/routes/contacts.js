@@ -66,7 +66,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     account_id, trc_owner_id, type, first_name, mi, last_name, title,
     email, linkedin, business_phone, mobile_phone,
     address, city, state, zip_code, country,
-    executive_assistant, ea_email, overlap_flag, last_contact, notes
+    executive_assistant, ea_email, overlap_flag, last_contact, notes, is_active
   } = req.body;
   try {
     await pool.query(`
@@ -75,8 +75,8 @@ router.put('/:id', requireAuth, async (req, res) => {
         email=$8, linkedin=$9, business_phone=$10, mobile_phone=$11,
         address=$12, city=$13, state=$14, zip_code=$15, country=$16,
         executive_assistant=$17, ea_email=$18, overlap_flag=$19, last_contact=$20, notes=$21,
-        updated_at=NOW()
-      WHERE id=$22
+        is_active=$22, updated_at=NOW()
+      WHERE id=$23
     `, [
       account_id || null, trc_owner_id || null, type,
       first_name, mi, last_name, title,
@@ -85,6 +85,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       executive_assistant, ea_email,
       overlap_flag ? 1 : 0,
       last_contact || null, notes,
+      is_active !== false,
       req.params.id
     ]);
     res.json({ ok: true });

@@ -10,6 +10,7 @@ const contactsRoutes      = require('./routes/contacts');
 const relationshipsRoutes = require('./routes/relationships');
 const opportunitiesRoutes = require('./routes/opportunities');
 const activitiesRoutes    = require('./routes/activities');
+const financialInputsRoutes = require('./routes/financialInputs');
 
 const app  = express();
 const PORT = process.env.PORT || 5000;
@@ -29,6 +30,7 @@ app.use('/api/contacts',      contactsRoutes);
 app.use('/api/relationships', relationshipsRoutes);
 app.use('/api/opportunities', opportunitiesRoutes);
 app.use('/api/activities',    activitiesRoutes);
+app.use('/api/financial-inputs', financialInputsRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

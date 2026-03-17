@@ -16,6 +16,7 @@ const BASE_QUERY = `
 `;
 
 const ACTIVE_STAGES = ['Qualified','Discovery','Solution Shaping','Proposal in Development','Proposal Delivered','Verbal Alignment'];
+const COMMITTED_STAGES = ['Closed Won','On Hold','Active','Complete'];
 
 router.get('/', requireAuth, async (req, res) => {
   const { owner_id, stage } = req.query;
@@ -53,10 +54,13 @@ router.get('/forecast', requireAuth, async (req, res) => {
 });
 
 router.get('/resource-plan', requireAuth, async (req, res) => {
-  const placeholders = ACTIVE_STAGES.map((_, i) => `$${i + 1}`).join(',');
+  const ALL_STAGES = [...ACTIVE_STAGES, ...COMMITTED_STAGES];
+  const placeholders = ALL_STAGES.map((_, i) => `$${i + 1}`).join(',');
   try {
     const { rows: opps } = await pool.query(`
-      SELECT o.id, o.name, a.name AS account_name, o.stage, o.estimated_value, o.confidence,
+      SELECT o.id, o.name, a.name AS account_name, o.stage, o.estimated_value,
+             CASE WHEN o.stage IN ('Closed Won','On Hold','Active','Complete') THEN 100
+                  ELSE COALESCE(o.confidence, 0) END AS confidence,
              o.fte_per_month, o.start_date, o.duration_weeks, o.service_line, u.name AS owner_name
       FROM opportunities o
       LEFT JOIN accounts a ON a.id = o.account_id
@@ -64,7 +68,7 @@ router.get('/resource-plan', requireAuth, async (req, res) => {
       WHERE o.stage IN (${placeholders})
         AND o.start_date IS NOT NULL AND o.start_date != ''
         AND o.duration_weeks IS NOT NULL AND o.duration_weeks > 0
-    `, ACTIVE_STAGES);
+    `, ALL_STAGES);
 
     const months = {};
     function addMonth(key) {

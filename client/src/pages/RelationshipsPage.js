@@ -41,6 +41,14 @@ export default function RelationshipsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['relationships-active'] }),
   });
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ contact_id, is_active }) => api.patch(`/contacts/${contact_id}/active`, { is_active }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['relationships-active'] });
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+    },
+  });
+
   function handleEdit(row) {
     // If the contact has no relationship record yet, pass a seed object (no id → modal will POST)
     setEditing(row.id ? row : { contact_id: row.contact_id, account_id: row.account_id });
@@ -131,6 +139,7 @@ export default function RelationshipsPage() {
           <table>
             <thead>
               <tr>
+                <th>Active</th>
                 <th>Contact</th>
                 <th>Account</th>
                 <th>Tier</th>
@@ -146,7 +155,22 @@ export default function RelationshipsPage() {
                 const overdue = r.next_action_date && isPast(parseISO(r.next_action_date));
                 const stale = !r.last_touch || isPast(new Date(new Date(r.last_touch).getTime() + 30 * 86400000));
                 return (
-                  <tr key={r.id} className={overdue ? 'row-overdue' : ''}>
+                  <tr key={r.contact_id} className={overdue ? 'row-overdue' : ''}>
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        title="Mark inactive (removes from Active Relationships)"
+                        onClick={() => toggleActiveMutation.mutate({ contact_id: r.contact_id, is_active: false })}
+                        style={{
+                          background: '#3fb95022',
+                          border: '1px solid #3fb950',
+                          borderRadius: 20, padding: '2px 10px', cursor: 'pointer',
+                          color: '#3fb950', fontSize: 11, fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Active
+                      </button>
+                    </td>
                     <td>
                       <div className="contact-cell">
                         <span className="contact-name">{r.contact_name}</span>

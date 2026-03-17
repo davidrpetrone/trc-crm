@@ -16,6 +16,7 @@ const BLANK = {
   overlap_flag: false,
   last_contact: '',
   notes: '',
+  is_active: true,
 };
 
 function needsFollowUp(last_contact) {
@@ -85,6 +86,7 @@ export default function ContactsPage() {
       overlap_flag: !!c.overlap_flag,
       last_contact: c.last_contact || '',
       notes: c.notes || '',
+      is_active: c.is_active !== false,
     });
     setShowForm(true);
   }
@@ -243,6 +245,7 @@ export default function ContactsPage() {
                   account_id: form.account_id || null,
                   trc_owner_id: form.trc_owner_id || null,
                   overlap_flag: form.overlap_flag ? 1 : 0,
+                  is_active: form.is_active !== false,
                 });
               }}
               className="modal-body"
@@ -370,6 +373,20 @@ export default function ContactsPage() {
                       style={{ width: 'auto', marginRight: 8 }}
                     />
                     Overlap Flag
+                  </label>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                  <label style={{ marginBottom: 10 }}>
+                    <input
+                      type="checkbox"
+                      checked={form.is_active}
+                      onChange={e => set('is_active', e.target.checked)}
+                      style={{ width: 'auto', marginRight: 8 }}
+                    />
+                    Active Contact
                   </label>
                 </div>
               </div>

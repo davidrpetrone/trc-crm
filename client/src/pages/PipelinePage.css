@@ -10,6 +10,30 @@
 .pipeline-summary { font-size: 13px; color: var(--text-muted); display: flex; gap: 8px; align-items: center; }
 .dot { color: var(--border); }
 
+/* View toggle */
+.view-toggle {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.view-btn {
+  background: none;
+  border: none;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.view-btn.active {
+  background: var(--gold);
+  color: #000;
+  font-weight: 600;
+}
+.view-btn:not(.active):hover { background: var(--surface2); }
+
 /* Kanban */
 .kanban-board {
   display: flex;

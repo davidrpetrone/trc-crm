@@ -162,7 +162,7 @@ export default function OpportunityModal({ opportunity, onClose, onSaved }) {
               </select>
             </div>
             <div className="form-group">
-              <label>Owner</label>
+              <label>Director</label>
               <select value={form.owner_id} onChange={e => set('owner_id', e.target.value)}>
                 <option value="">— Unassigned —</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}

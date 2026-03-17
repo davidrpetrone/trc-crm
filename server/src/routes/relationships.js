@@ -80,7 +80,7 @@ router.post('/', requireAuth, async (req, res) => {
         (contact_id,account_id,owner_id,stage,tier,last_touch,next_action_date,next_action_notes,ea_linked,sales_motion,notes)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       RETURNING id
-    `, [contact_id, account_id, owner_id, stage || 'Target Identified', tier, last_touch, next_action_date, next_action_notes, ea_linked, sales_motion, notes]);
+    `, [contact_id, account_id, owner_id, stage || 'Relationship Active', tier, last_touch, next_action_date, next_action_notes, ea_linked, sales_motion, notes]);
     res.status(201).json({ id: rows[0].id });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

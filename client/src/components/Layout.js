@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import './Layout.css';
@@ -48,6 +49,12 @@ const NAV_SECTIONS = [
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   function handleLogout() {
     logout();
@@ -90,12 +97,21 @@ export default function Layout() {
             <div className="user-name">{user?.name}</div>
             <div className="user-role">{user?.role}</div>
           </div>
-          <button className="btn-secondary" onClick={handleLogout}>Sign out</button>
+          <button className="btn-signout" onClick={handleLogout}>Sign out</button>
         </div>
       </aside>
-      <main className="main-content">
-        <Outlet />
-      </main>
+      <div className="main-wrapper">
+        <header className="top-bar">
+          <div className="top-bar-right">
+            <button className="theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
+              {theme === 'light' ? '🌙 Dark mode' : '☀️ Light mode'}
+            </button>
+          </div>
+        </header>
+        <main className="main-content">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

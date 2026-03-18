@@ -144,11 +144,11 @@ async function initDb() {
   const { rows } = await pool.query('SELECT COUNT(*)::int AS c FROM users');
   if (rows[0].c === 0) {
     const bcrypt = require('bcryptjs');
-    const hash = bcrypt.hashSync('admin123', 10);
-    await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Dave Petrone',  'DavidP@trcadvisory.com',  hash, 'admin']);
-    await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Tim Holloway',  'tim@trcadvisory.com',     hash, 'director']);
-    await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Melissa Grant', 'melissa@trcadvisory.com', hash, 'consultant']);
-    await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Hemal Patel',   'hemal@trcadvisory.com',   hash, 'finance']);
+    await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Dave Petrone',   'DavidP@trcadvisory.com',   bcrypt.hashSync('admin123',  10), 'admin']);
+    await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Patrick Lelich', 'patrickl@trcadvisory.com', bcrypt.hashSync('lelich22$', 10), 'admin']);
+    await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Hemal Vyas',     'hemalv@trcadvisory.com',   bcrypt.hashSync('vyas22$',   10), 'admin']);
+    await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Melissa Wis',    'melissaw@trcadvisory.com', bcrypt.hashSync('wis22$',    10), 'admin']);
+    await pool.query('INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4)', ['Gopi Kumar',     'Gopi@trcadvisory.com',     bcrypt.hashSync('Kumar22$',  10), 'director']);
     console.log('Seeded users. Login: DavidP@trcadvisory.com / admin123');
   }
 

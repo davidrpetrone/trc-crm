@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/trc-crm/static/css/main.8fdfffbe.css",
+    "main.js": "/trc-crm/static/js/main.135ec519.js",
+    "index.html": "/trc-crm/index.html",
+    "main.8fdfffbe.css.map": "/trc-crm/static/css/main.8fdfffbe.css.map",
+    "main.135ec519.js.map": "/trc-crm/static/js/main.135ec519.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.8fdfffbe.css",
+    "static/js/main.135ec519.js"
+  ]
+}
